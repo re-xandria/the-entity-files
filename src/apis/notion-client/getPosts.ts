@@ -4,6 +4,7 @@ import { idToUuid } from "notion-utils"
 
 import getAllPageIds from "src/libs/utils/notion/getAllPageIds"
 import getPageProperties from "src/libs/utils/notion/getPageProperties"
+import { unwrapBlockValue } from "src/libs/utils/notion/unwrapBlockValue"
 import { TPosts } from "src/types"
 
 /**
@@ -17,11 +18,11 @@ export const getPosts = async () => {
 
   const response = await api.getPage(id)
   id = idToUuid(id)
-  const collection = Object.values(response.collection)[0]?.value
+  const collection = unwrapBlockValue(Object.values(response.collection)[0]?.value)
   const block = response.block
   const schema = collection?.schema
 
-  const rawMetadata = block[id].value
+  const rawMetadata = unwrapBlockValue(block[id]?.value)
 
   // Check Type
   if (
@@ -36,12 +37,10 @@ export const getPosts = async () => {
     for (let i = 0; i < pageIds.length; i++) {
       const id = pageIds[i]
       const properties = (await getPageProperties(id, block, schema)) || null
+      const metadata = unwrapBlockValue(block[id]?.value)
       // Add fullwidth, createdtime to properties
-      properties.createdTime = new Date(
-        block[id].value?.created_time
-      ).toString()
-      properties.fullWidth =
-        (block[id].value?.format as any)?.page_full_width ?? false
+      properties.createdTime = new Date(metadata?.created_time).toString()
+      properties.fullWidth = (metadata?.format as any)?.page_full_width ?? false
 
       data.push(properties)
     }

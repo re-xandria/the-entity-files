@@ -2,6 +2,7 @@ import { getTextContent, getDateValue } from "notion-utils"
 import { NotionAPI } from "notion-client"
 import { BlockMap, CollectionPropertySchemaMap } from "notion-types"
 import { customMapImageUrl } from "./customMapImageUrl"
+import { unwrapBlockValue } from "./unwrapBlockValue"
 
 async function getPageProperties(
   id: string,
@@ -9,7 +10,8 @@ async function getPageProperties(
   schema: CollectionPropertySchemaMap
 ) {
   const api = new NotionAPI()
-  const rawProperties = Object.entries(block?.[id]?.value?.properties || [])
+  const blockValue = unwrapBlockValue(block?.[id]?.value)
+  const rawProperties = Object.entries(blockValue?.properties || [])
   const excludeProperties = ["date", "select", "multi_select", "person", "file"]
   const properties: any = {}
   for (let i = 0; i < rawProperties.length; i++) {
@@ -21,12 +23,12 @@ async function getPageProperties(
       switch (schema[key]?.type) {
         case "file": {
           try {
-            const Block = block?.[id].value
+            const Block = blockValue
             const url: string = val[0][1][0][1]
             const newurl = customMapImageUrl(url, Block)
             properties[schema[key].name] = newurl
           } catch (error) {
-            properties[schema[key].name] = undefined
+            properties[schema[key].name] = null
           }
           break
         }
@@ -58,14 +60,15 @@ async function getPageProperties(
             if (rawUsers[i][0][1]) {
               const userId = rawUsers[i][0]
               const res: any = await api.getUsers(userId)
-              const resValue =
+              const resValue = unwrapBlockValue(
                 res?.recordMapWithRoles?.notion_user?.[userId[1]]?.value
+              )
               const user = {
-                id: resValue?.id,
+                id: resValue?.id ?? null,
                 name:
                   resValue?.name ||
                   `${resValue?.family_name}${resValue?.given_name}` ||
-                  undefined,
+                  null,
                 profile_photo: resValue?.profile_photo || null,
               }
               users.push(user)
